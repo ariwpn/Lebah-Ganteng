@@ -54,8 +54,10 @@ def load_data():
 day_wise, full_grouped, country_latest, worldometer, usa_county, clean = load_data()
 
 # Helper global
-all_dates = sorted(day_wise["Date"].unique())
-min_date, max_date = all_dates[0], all_dates[-1]
+# all_dates sebagai Timestamp -> ambil tanggal Python (date) untuk slider
+all_dates = pd.to_datetime(day_wise["Date"].unique())
+min_date = all_dates.min().date()
+max_date = all_dates.max().date()
 
 all_countries = sorted(full_grouped["Country/Region"].unique())
 default_countries = [
@@ -76,7 +78,7 @@ page = st.sidebar.radio(
         "🌍 Global Map",
         "📊 Country Dashboard",
         "📈 Country Comparison",
-        "🇺🇸 USA View",
+        "🗽 USA View",
         "📑 Data Explorer",
     ),
 )
@@ -320,6 +322,7 @@ elif page == "📈 Country Comparison":
         index=0,
     )
 
+    # Slider pakai tipe date (bukan pandas.Timestamp)
     date_range = st.slider(
         "Rentang tanggal:",
         min_value=min_date,
@@ -330,9 +333,11 @@ elif page == "📈 Country Comparison":
     if not countries:
         st.info("Pilih minimal satu negara.")
     else:
+        # Bandingkan dengan .dt.date karena kolom Date di dataframe adalah datetime
         compare_df = full_grouped[
             (full_grouped["Country/Region"].isin(countries))
-            & (full_grouped["Date"].between(date_range[0], date_range[1]))
+            & (full_grouped["Date"].dt.date.between(date_range[0], date_range[1])
+               )
         ]
 
         if compare_df.empty:
@@ -351,11 +356,13 @@ elif page == "📈 Country Comparison":
             st.markdown("### Snapshot di tanggal tertentu")
             snap_date = st.date_input(
                 "Pilih tanggal snapshot:",
-                value=date_range[1].date(),
-                min_value=date_range[0].date(),
-                max_value=date_range[1].date(),
+                value=date_range[1],
+                min_value=date_range[0],
+                max_value=date_range[1],
             )
-            snap_df = compare_df[compare_df["Date"] == pd.to_datetime(snap_date)]
+
+            # Cocokkan tanggal snapshot dengan Date di dataframe
+            snap_df = compare_df[compare_df["Date"].dt.date == snap_date]
             snap_df = snap_df[["Country/Region", metric]].sort_values(
                 metric, ascending=False
             )
@@ -365,8 +372,8 @@ elif page == "📈 Country Comparison":
 # ===========================================================
 # 5. USA VIEW
 # ===========================================================
-elif page == "🇺🇸 USA View":
-    st.header("🇺🇸 USA County / State View")
+elif page == "🗽 USA View":
+    st.header("🗽 USA County / State View")
 
     states = sorted(usa_county["Province_State"].dropna().unique())
     state = st.selectbox(
